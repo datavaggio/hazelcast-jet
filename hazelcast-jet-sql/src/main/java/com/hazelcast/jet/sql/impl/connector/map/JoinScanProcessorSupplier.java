@@ -16,7 +16,6 @@
 
 package com.hazelcast.jet.sql.impl.connector.map;
 
-import com.hazelcast.function.BiFunctionEx;
 import com.hazelcast.function.FunctionEx;
 import com.hazelcast.internal.serialization.InternalSerializationService;
 import com.hazelcast.jet.Traverser;
@@ -32,6 +31,7 @@ import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.DataSerializable;
 import com.hazelcast.query.impl.getters.Extractors;
+import com.hazelcast.sql.impl.expression.Expression;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import javax.annotation.Nonnull;
@@ -42,7 +42,7 @@ import java.util.List;
 import java.util.Map.Entry;
 
 import static com.hazelcast.jet.Traversers.traverseIterable;
-import static com.hazelcast.jet.impl.util.Util.padRight;
+import static com.hazelcast.jet.impl.util.Util.extendArray;
 
 @SuppressFBWarnings(
         value = {"SE_BAD_FIELD", "SE_NO_SERIALVERSIONID"},
@@ -105,8 +105,7 @@ final class JoinScanProcessorSupplier implements ProcessorSupplier, DataSerializ
             IMap<Object, Object> map,
             KvRowProjector rightRowProjector
     ) {
-        boolean outer = joinInfo.isOuter();
-        BiFunctionEx<Object[], Object[], Object[]> joinFn = ExpressionUtil.joinFn(joinInfo.condition());
+        boolean outer = joinInfo.isLeftOuter();
 
         return lefts -> {
             List<Object[]> rights = new ArrayList<>();
@@ -119,11 +118,11 @@ final class JoinScanProcessorSupplier implements ProcessorSupplier, DataSerializ
 
             List<Object[]> rows = new ArrayList<>();
             for (Object left : lefts) {
-                List<Object[]> joined = join((Object[]) left, rights, joinFn);
+                List<Object[]> joined = join((Object[]) left, rights, joinInfo.condition());
                 if (!joined.isEmpty()) {
                     rows.addAll(joined);
                 } else if (outer) {
-                    rows.add(padRight((Object[]) left, rightRowProjector.getColumnCount()));
+                    rows.add(extendArray((Object[]) left, rightRowProjector.getColumnCount()));
                 }
             }
             return traverseIterable(rows);
@@ -133,12 +132,12 @@ final class JoinScanProcessorSupplier implements ProcessorSupplier, DataSerializ
     private static List<Object[]> join(
             Object[] left,
             List<Object[]> rights,
-            BiFunctionEx<Object[], Object[], Object[]> joinFn
+            Expression<Boolean> condition
     ) {
         // TODO: get rid of intermediate list?
         List<Object[]> rows = new ArrayList<>();
         for (Object[] right : rights) {
-            Object[] joined = joinFn.apply(left, right);
+            Object[] joined = ExpressionUtil.join(left, right, condition);
             if (joined != null) {
                 rows.add(joined);
             }

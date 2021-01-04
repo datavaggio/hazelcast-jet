@@ -28,7 +28,7 @@ import com.hazelcast.jet.core.ProcessorSupplier;
 import com.hazelcast.jet.core.Vertex;
 import com.hazelcast.jet.core.processor.Processors;
 import com.hazelcast.jet.sql.impl.ExpressionUtil;
-import com.hazelcast.jet.sql.impl.connector.SqlConnector.NestedLoopJoin;
+import com.hazelcast.jet.sql.impl.connector.SqlConnector.SubDag;
 import com.hazelcast.sql.impl.calcite.schema.HazelcastTable;
 import com.hazelcast.sql.impl.schema.Table;
 import org.apache.calcite.rel.RelNode;
@@ -183,15 +183,15 @@ public class CreateDagVisitor {
 
         Table rightTable = rel.getRight().getTable().unwrap(HazelcastTable.class).getTarget();
 
-        NestedLoopJoin join = getJetSqlConnector(rightTable).nestedLoopReader(
+        SubDag subDag = getJetSqlConnector(rightTable).nestedLoopReader(
                 dag,
                 rightTable,
                 rel.rightFilter(),
                 rel.rightProjection(),
                 rel.joinInfo()
         );
-        connectInput(rel.getLeft(), join.ingress(), join.configureEdgeFn());
-        return join.egress();
+        connectInput(rel.getLeft(), subDag.ingressVertex(), subDag.configureEdgeFn());
+        return subDag.egressVertex();
     }
 
     public Vertex onRoot(JetRootRel rootRel) {

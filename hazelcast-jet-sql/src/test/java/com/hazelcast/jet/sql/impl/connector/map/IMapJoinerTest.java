@@ -21,7 +21,7 @@ import com.hazelcast.jet.core.DAG;
 import com.hazelcast.jet.core.ProcessorMetaSupplier;
 import com.hazelcast.jet.core.Vertex;
 import com.hazelcast.jet.sql.impl.JetJoinInfo;
-import com.hazelcast.jet.sql.impl.connector.SqlConnector.NestedLoopJoin;
+import com.hazelcast.jet.sql.impl.connector.SqlConnector.SubDag;
 import com.hazelcast.jet.sql.impl.connector.keyvalue.KvRowProjector;
 import com.hazelcast.sql.impl.extract.QueryPath;
 import junitparams.JUnitParamsRunner;
@@ -40,7 +40,7 @@ import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.BDDMockito.given;
 
 @RunWith(JUnitParamsRunner.class)
-public class JoinerTest {
+public class IMapJoinerTest {
 
     @Mock
     private DAG dag;
@@ -72,7 +72,7 @@ public class JoinerTest {
         given(dag.newUniqueVertex(contains("Lookup"), isA(JoinByPrimitiveKeyProcessorSupplier.class))).willReturn(ingress);
 
         // when
-        NestedLoopJoin join = Joiner.join(
+        SubDag join = IMapJoiner.join(
                 dag,
                 "imap-name",
                 "table-name",
@@ -81,8 +81,8 @@ public class JoinerTest {
         );
 
         // then
-        assertThat(join.ingress()).isNotNull();
-        assertThat(join.ingress()).isEqualTo(join.egress());
+        assertThat(join.ingressVertex()).isNotNull();
+        assertThat(join.ingressVertex()).isEqualTo(join.egressVertex());
     }
 
     @Test
@@ -95,7 +95,7 @@ public class JoinerTest {
         given(dag.newUniqueVertex(contains("Predicate"), isA(ProcessorMetaSupplier.class))).willReturn(egress);
 
         // when
-        NestedLoopJoin join = Joiner.join(
+        SubDag join = IMapJoiner.join(
                 dag,
                 "imap-name",
                 "table-name",
@@ -104,9 +104,9 @@ public class JoinerTest {
         );
 
         // then
-        assertThat(join.ingress()).isNotNull();
-        assertThat(join.egress()).isNotNull();
-        assertThat(join.ingress()).isNotEqualTo(join.egress());
+        assertThat(join.ingressVertex()).isNotNull();
+        assertThat(join.egressVertex()).isNotNull();
+        assertThat(join.ingressVertex()).isNotEqualTo(join.egressVertex());
     }
 
     @Test
@@ -117,7 +117,7 @@ public class JoinerTest {
                 .willReturn(ingress);
 
         // when
-        NestedLoopJoin join = Joiner.join(
+        SubDag join = IMapJoiner.join(
                 dag,
                 "imap-name",
                 "table-name",
@@ -126,8 +126,8 @@ public class JoinerTest {
         );
 
         // then
-        assertThat(join.ingress()).isNotNull();
-        assertThat(join.ingress()).isEqualTo(join.egress());
+        assertThat(join.ingressVertex()).isNotNull();
+        assertThat(join.ingressVertex()).isEqualTo(join.egressVertex());
     }
 
     @Test
@@ -138,7 +138,7 @@ public class JoinerTest {
         given(dag.newUniqueVertex(contains("Scan"), isA(JoinScanProcessorSupplier.class))).willReturn(ingress);
 
         // when
-        NestedLoopJoin join = Joiner.join(
+        SubDag join = IMapJoiner.join(
                 dag,
                 "imap-name",
                 "table-name",
@@ -147,8 +147,8 @@ public class JoinerTest {
         );
 
         // then
-        assertThat(join.ingress()).isNotNull();
-        assertThat(join.ingress()).isEqualTo(join.egress());
+        assertThat(join.ingressVertex()).isNotNull();
+        assertThat(join.ingressVertex()).isEqualTo(join.egressVertex());
     }
 
     private static JetJoinInfo joinInfo(boolean inner, int[] leftEquiJoinIndices, int[] rightEquiJoinIndices) {

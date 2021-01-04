@@ -187,7 +187,7 @@ public interface SqlConnector {
 
     /**
      * Creates a {@link Table} object with the given fields. Should return
-     * quickly; specificially it should not attempt to connect to the remote
+     * quickly; specifically it should not attempt to connect to the remote
      * service.
      * <p>
      * Jet calls this method for each statement execution and for each mapping.
@@ -263,19 +263,22 @@ public interface SqlConnector {
      * zero-based indexes of the original fields of the {@code table}. For
      * example, if the table has fields {@code a, b, c} and the query is:
      * <pre>{@code
-     *     SELECT l.v, r.b FROM l JOIN r ON l.v = r.b WHERE r.c=10
+     *     SELECT l.v, r.b
+     *     FROM l
+     *     JOIN r ON l.v = r.b
+     *     WHERE r.c=10
      * }</pre>
-     * Then the projection will be {@code {1}} and the predicate will be {@code
-     * {2}=10}.
+     * then the projection will be <code>{1}</code> and the predicate will be
+     * <code>{2}=10</code>.
      *
      * @param table      the table object
      * @param predicate  SQL expression to filter the rows
      * @param projection the list of fields to return
      * @param joinInfo   {@link JetJoinInfo}
-     * @return {@link NestedLoopJoin}
+     * @return {@link SubDag}
      */
     @Nonnull
-    default NestedLoopJoin nestedLoopReader(
+    default SubDag nestedLoopReader(
             @Nonnull DAG dag,
             @Nonnull Table table,
             @Nullable Expression<Boolean> predicate,
@@ -315,41 +318,52 @@ public interface SqlConnector {
     }
 
     /**
-     * Definition of a nested loop join.
+     * Definition of a sub-DAG.
      * <p>
      * Contains:<ul>
-     * <li>{@code ingress}: the input vertex
-     * <li>{@code egress}: the output vertex
-     * <li>{@code configureEdgeFn}: function to configure the edge the
-     * {@code ingress} vertex is connected to
+     * <li>{@code ingressVertex}
+     * <li>{@code egressVertex}
+     * <li>{@code configureEdgeFn}: a function to configure edge(s) which connect
+     *     the {@code ingressVertex} to the upstream
      * </ul>
      */
-    class NestedLoopJoin {
+    class SubDag {
 
-        private final Vertex ingress;
-        private final Vertex egress;
+        private final Vertex ingressVertex;
+        private final Vertex egressVertex;
         private final Consumer<Edge> configureEdgeFn;
 
-        public NestedLoopJoin(Vertex ingress) {
-            this(ingress, ingress, null);
+        /**
+         * Creates a single-vertex sub-DAG. The given vertex is both its ingress
+         * and egress.
+         */
+        public SubDag(Vertex ingressVertex) {
+            this(ingressVertex, ingressVertex, null);
         }
 
-        public NestedLoopJoin(Vertex ingress, Consumer<Edge> configureEdgeFn) {
-            this(ingress, ingress, configureEdgeFn);
+        /**
+         * Creates a single-vertex sub-DAG. The given vertex is both its ingress
+         * and egress.
+         */
+        public SubDag(Vertex ingressVertex, Consumer<Edge> configureEdgeFn) {
+            this(ingressVertex, ingressVertex, configureEdgeFn);
         }
 
-        public NestedLoopJoin(Vertex ingress, Vertex egress, Consumer<Edge> configureEdgeFn) {
-            this.ingress = ingress;
-            this.egress = egress;
+        /**
+         * Creates a sub-DAG, see {@link SubDag}.
+         */
+        public SubDag(Vertex ingressVertex, Vertex egressVertex, Consumer<Edge> configureEdgeFn) {
+            this.ingressVertex = ingressVertex;
+            this.egressVertex = egressVertex;
             this.configureEdgeFn = configureEdgeFn;
         }
 
-        public Vertex ingress() {
-            return ingress;
+        public Vertex ingressVertex() {
+            return ingressVertex;
         }
 
-        public Vertex egress() {
-            return egress;
+        public Vertex egressVertex() {
+            return egressVertex;
         }
 
         public Consumer<Edge> configureEdgeFn() {
