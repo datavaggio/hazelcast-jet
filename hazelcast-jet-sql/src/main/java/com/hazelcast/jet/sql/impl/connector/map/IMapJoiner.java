@@ -17,17 +17,11 @@
 package com.hazelcast.jet.sql.impl.connector.map;
 
 import com.hazelcast.function.FunctionEx;
-import com.hazelcast.jet.Traversers;
 import com.hazelcast.jet.core.DAG;
-import com.hazelcast.jet.core.Vertex;
-import com.hazelcast.jet.impl.processor.TransformP;
 import com.hazelcast.jet.sql.impl.JetJoinInfo;
 import com.hazelcast.jet.sql.impl.connector.SqlConnector.SubDag;
 import com.hazelcast.jet.sql.impl.connector.keyvalue.KvRowProjector;
 import com.hazelcast.sql.impl.extract.QueryPath;
-
-import static com.hazelcast.function.Functions.wholeItem;
-import static com.hazelcast.jet.core.Edge.between;
 
 final class IMapJoiner {
 
@@ -43,6 +37,10 @@ final class IMapJoiner {
     ) {
         int leftEquiJoinPrimitiveKeyIndex = leftEquiJoinPrimitiveKeyIndex(joinInfo, rightRowProjectorSupplier.paths());
         if (leftEquiJoinPrimitiveKeyIndex > -1) {
+            // This branch handles the case when there's an equi-join condition for the __key field.
+            // For example: SELECT * FROM left [LEFT] JOIN right ON left.field1=right.__key /* ... more conditions on right */
+            // In this case we'll use map.get() for the right map to get the matching entry by key and evaluate the
+            // remaining conditions on the returned row.
             return new SubDag(
                     dag.newUniqueVertex(
                             "Join(Lookup-" + tableName + ")",
@@ -57,19 +55,14 @@ final class IMapJoiner {
                     edge -> edge.partitioned(extractPrimitiveKeyFn(leftEquiJoinPrimitiveKeyIndex)).distributed()
             );
         } else if (joinInfo.isEquiJoin() && joinInfo.isInner()) {
-            // TODO: define new edge type (mix of broadcast & local-round-robin) ?
-            Vertex ingress = dag
-                    .newUniqueVertex("Broadcast", () -> new TransformP<>(Traversers::singleton))
-                    .localParallelism(1);
-
-            Vertex egress = dag.newUniqueVertex(
-                    "Join(Predicate-" + tableName + ")",
-                    JoinByPredicateInnerProcessorSupplier.supplier(joinInfo, mapName, rightRowProjectorSupplier)
-            );
-
-            dag.edge(between(ingress, egress).partitioned(wholeItem()));
-
-            return new SubDag(ingress, egress, edge -> edge.distributed().broadcast());
+            // This branch handles the case when there's any equi-join, but not for __key (that was handled above)
+            // For example: SELECT * FROM left JOIN right ON left.field1=right.field1
+            // In this case we'll construct a com.hazelcast.query.Predicate that will find matching rows using
+            // the `map.entrySet(predicate)` method.
+            return new SubDag(
+                    dag.newUniqueVertex("Join(Predicate-" + tableName + ")",
+                            JoinByPredicateInnerProcessorSupplier.supplier(joinInfo, mapName, rightRowProjectorSupplier)),
+                    edge -> edge.distributed().fanout());
         } else if (joinInfo.isEquiJoin() && joinInfo.isLeftOuter()) {
             return new SubDag(
                     dag.newUniqueVertex(

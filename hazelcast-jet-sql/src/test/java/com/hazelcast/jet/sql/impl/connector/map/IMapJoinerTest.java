@@ -106,7 +106,6 @@ public class IMapJoinerTest {
         // then
         assertThat(join.ingressVertex()).isNotNull();
         assertThat(join.egressVertex()).isNotNull();
-        assertThat(join.ingressVertex()).isNotEqualTo(join.egressVertex());
     }
 
     @Test
