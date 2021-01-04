@@ -16,10 +16,7 @@
 
 package com.hazelcast.jet.sql.impl.connector.kafka;
 
-import com.fasterxml.jackson.databind.node.IntNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
+import com.google.common.collect.ImmutableMap;
 import com.hazelcast.jet.kafka.impl.KafkaTestSupport;
 import com.hazelcast.jet.sql.SqlTestSupport;
 import com.hazelcast.jet.sql.impl.connector.test.AllTypesSqlConnector;
@@ -267,8 +264,8 @@ public class SqlJsonTest extends SqlTestSupport {
         assertRowsEventuallyInAnyOrder(
                 "SELECT __key, this FROM " + name,
                 singletonList(new Row(
-                        new ObjectNode(JsonNodeFactory.instance).set("id", new IntNode(1)),
-                        new ObjectNode(JsonNodeFactory.instance).set("name", new TextNode("Alice"))
+                        ImmutableMap.of("id", 1),
+                        ImmutableMap.of("name", "Alice")
                 ))
         );
     }
