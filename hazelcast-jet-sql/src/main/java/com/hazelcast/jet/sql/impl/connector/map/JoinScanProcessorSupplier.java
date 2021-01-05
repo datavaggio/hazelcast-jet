@@ -100,7 +100,7 @@ final class JoinScanProcessorSupplier implements ProcessorSupplier, DataSerializ
         return processors;
     }
 
-    private static FunctionEx<List<? super Object[]>, Traverser<Object[]>> joinFn(
+    private static FunctionEx<List<Object[]>, Traverser<Object[]>> joinFn(
             JetJoinInfo joinInfo,
             IMap<Object, Object> map,
             KvRowProjector rightRowProjector
@@ -117,12 +117,12 @@ final class JoinScanProcessorSupplier implements ProcessorSupplier, DataSerializ
             }
 
             List<Object[]> rows = new ArrayList<>();
-            for (Object left : lefts) {
-                List<Object[]> joined = join((Object[]) left, rights, joinInfo.condition());
+            for (Object[] left : lefts) {
+                List<Object[]> joined = join(left, rights, joinInfo.condition());
                 if (!joined.isEmpty()) {
                     rows.addAll(joined);
                 } else if (outer) {
-                    rows.add(extendArray((Object[]) left, rightRowProjector.getColumnCount()));
+                    rows.add(extendArray(left, rightRowProjector.getColumnCount()));
                 }
             }
             return traverseIterable(rows);
