@@ -109,6 +109,9 @@ final class JoinScanProcessorSupplier implements ProcessorSupplier, DataSerializ
 
         return lefts -> {
             List<Object[]> rights = new ArrayList<>();
+            // TODO it would be nice if we executed the entrySet() with the predicate that rightRowProjector
+            //  uses, maybe the majority of rows are rejected. However, the predicate has state.
+            //  Without a state the predicate will have to create QueryTargets and extractors for each row.
             for (Entry<Object, Object> entry : map.entrySet()) {
                 Object[] right = rightRowProjector.project(entry);
                 if (right != null) {
